@@ -1,6 +1,8 @@
 // src/services/api.js
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://blackcoffer-dashboard-2isz.onrender.com';
 
+console.log('🚀 API Base URL:', API_BASE_URL);
+
 export const insightAPI = {
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;

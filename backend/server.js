@@ -10,7 +10,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173', 
-    'https://blackcoffer-dashboard-mh9ljtaw9-ayushkumar2555s-projects.vercel.app/'
+    'https://blackcoffer-dashboard-mh9ljtaw9-ayushkumar2555s-projects.vercel.app'
   ],
   credentials: true
 }));
