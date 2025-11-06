@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { insightAPI } from '../services/api';
+import { insightAPI, fetchInsights, fetchFilters, fetchStats } from '../services/api';
 import StatsOverview from './StatsOverview';
 import Charts from './Charts';
 import Filters from './Filter';
@@ -21,6 +21,55 @@ const Dashboard = () => {
   const [filters, setFilters] = useState({});
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Load initial data (filters and stats)
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔄 Loading initial dashboard data...');
+      
+      // Using the new API functions
+      const [filtersResponse, statsResponse] = await Promise.all([
+        fetchFilters(),
+        fetchStats()
+      ]);
+      
+      console.log('✅ Initial data loaded:', {
+        filters: filtersResponse.data?.data,
+        stats: statsResponse.data?.data
+      });
+      
+      setFilterOptions(filtersResponse.data?.data || {});
+      setStats(statsResponse.data?.data || {});
+      setLastUpdated(new Date());
+      
+    } catch (err) {
+      console.error('❌ Error loading initial data:', err);
+      setError(err.message || 'Failed to load dashboard data. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load insights when filters change
+  const loadInsights = async () => {
+    try {
+      console.log('🔄 Loading insights with filters:', filters);
+      
+      const response = await fetchInsights(filters);
+      
+      if (response.data?.data) {
+        setInsights(response.data.data);
+        console.log(`✅ Loaded ${response.data.data.length} insights`);
+      } else {
+        throw new Error('No data received from API');
+      }
+    } catch (err) {
+      console.error('❌ Error loading insights:', err);
+      setError('Failed to load insights: ' + err.message);
+    }
+  };
+
   // Memoized API calls to prevent unnecessary re-renders
   useEffect(() => {
     loadInitialData();
@@ -32,59 +81,40 @@ const Dashboard = () => {
     }
   }, [filters, filterOptions]);
 
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [filtersResponse, statsResponse] = await Promise.all([
-        insightAPI.getFilterOptions(),
-        insightAPI.getStats()
-      ]);
-      
-      // Enhanced error handling
-      if (filtersResponse?.data?.success) {
-        setFilterOptions(filtersResponse.data.data);
-      } else {
-        throw new Error(filtersResponse?.data?.message || 'Failed to load filters');
-      }
-      
-      if (statsResponse?.data?.success) {
-        setStats(statsResponse.data.data);
-      } else {
-        throw new Error(statsResponse?.data?.message || 'Failed to load stats');
-      }
-      
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Error loading initial data:', err);
-      setError('Failed to load initial data: ' + (err.message || 'Network error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadInsights = async () => {
-    try {
-      const response = await insightAPI.getInsights(filters);
-      if (response?.data?.success) {
-        setInsights(response.data.data || []);
-      } else {
-        throw new Error(response?.data?.message || 'Failed to load insights');
-      }
-    } catch (err) {
-      console.error('Error loading insights:', err);
-      setError('Failed to load insights: ' + (err.message || 'Network error'));
-    }
-  };
-
   const handleFilterChange = (newFilters) => {
+    console.log('🎛️ Filters changed:', newFilters);
     setFilters(newFilters);
   };
 
   const refreshData = () => {
+    console.log('🔄 Manual refresh triggered');
     setError(null);
     loadInitialData();
+  };
+
+  // Test API connection function
+  const testAPIConnection = async () => {
+    try {
+      console.log('🧪 Testing API connection...');
+      
+      // Test each endpoint directly
+      const healthTest = await fetch('https://blackcoffer-dashboard-2isz.onrender.com/api/health');
+      const healthData = await healthTest.json();
+      console.log('✅ Health check:', healthData);
+      
+      const filtersTest = await fetch('https://blackcoffer-dashboard-2isz.onrender.com/api/filters');
+      const filtersData = await filtersTest.json();
+      console.log('✅ Filters check:', filtersData);
+      
+      const insightsTest = await fetch('https://blackcoffer-dashboard-2isz.onrender.com/api/insights?limit=5');
+      const insightsData = await insightsTest.json();
+      console.log('✅ Insights check:', insightsData);
+      
+      alert('✅ API Connection Successful! Check console for details.');
+    } catch (error) {
+      console.error('❌ API Test failed:', error);
+      alert('❌ API Connection Failed: ' + error.message);
+    }
   };
 
   // Loading state with fallback icons
@@ -100,6 +130,14 @@ const Dashboard = () => {
           )}
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Dashboard</h3>
           <p className="text-gray-600">Preparing your strategic insights...</p>
+          
+          {/* Temporary test button */}
+          <button 
+            onClick={testAPIConnection}
+            className="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            Test API Connection
+          </button>
         </div>
       </div>
     );
@@ -119,12 +157,20 @@ const Dashboard = () => {
             <h3 className="text-lg font-semibold text-red-800">Unable to Load Data</h3>
           </div>
           <p className="text-red-700 mb-4">{error}</p>
-          <button
-            onClick={refreshData}
-            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Try Again
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={refreshData}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={testAPIConnection}
+              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Test API Connection
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -140,17 +186,26 @@ const Dashboard = () => {
             Analyzing {stats?.basic?.totalRecords || 0} data points across multiple dimensions
           </p>
         </div>
-        <button
-          onClick={refreshData}
-          className="flex items-center space-x-2 bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          {window.RefreshCw ? (
-            <RefreshCw className="h-4 w-4" />
-          ) : (
-            <FallbackRefresh />
-          )}
-          <span>Refresh</span>
-        </button>
+        <div className="flex gap-2">
+          {/* Temporary test button - remove after fixing */}
+          <button 
+            onClick={testAPIConnection}
+            className="flex items-center space-x-2 bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm"
+          >
+            Test API
+          </button>
+          <button
+            onClick={refreshData}
+            className="flex items-center space-x-2 bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            {window.RefreshCw ? (
+              <RefreshCw className="h-4 w-4" />
+            ) : (
+              <FallbackRefresh />
+            )}
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Last Updated */}
